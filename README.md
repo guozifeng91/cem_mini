@@ -15,7 +15,7 @@ the implementation is validated using [compas_cem](https://github.com/arpastrana
 
 ## examples
 
-see examples [source code](cem_mini/src/cem_mini/cem_examples.py) and [jupyter notebook](cem_mini/src/examples.ipynb )
+see examples [source code](src/cem_mini/cem_examples.py) and [jupyter notebook](src/examples.ipynb )
 
 ![Alt text](quick_start.png?raw=true "quick start")
 
