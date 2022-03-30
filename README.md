@@ -15,11 +15,11 @@ the implementation is validated using [compas_cem](https://github.com/arpastrana
 
 ## examples
 
-![Alt text](relative/path/to/quick_start.png?raw=true "quick start")
+![Alt text](quick_start.png?raw=true "quick start")
 
-![Alt text](relative/path/to/braced_tower.png?raw=true "braced tower")
+![Alt text](braced_tower.png?raw=true "braced tower")
 
-![Alt text](relative/path/to/bridge.png?raw=true "bridge 2d")
+![Alt text](bridge.png?raw=true "bridge 2d")
 
 
 
