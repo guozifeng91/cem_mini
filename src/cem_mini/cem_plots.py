@@ -26,7 +26,7 @@ class Arrow3D(FancyArrowPatch):
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         FancyArrowPatch.draw(self, renderer)
         
-def plot_cem_form(ax, coords, edges, forces, loads=None, view='2D-XY', load_len_scale=1, thickness_base=1, thickness_ratio=0.01, ignore_zeros=True):
+def plot_cem_form(ax, coords, edges, forces, loads=None, view='2D-XY', load_len_scale=1, thickness_base=1, thickness_ratio=0.01, ignore_zeros=True, vrange=None):
     '''
     coords: np array of shane (M,3)
     edges: array or np array of shape (N, 2), representing the node indices
@@ -42,8 +42,13 @@ def plot_cem_form(ax, coords, edges, forces, loads=None, view='2D-XY', load_len_
     
     ax.view_init(elev=set_view[view][0], azim=set_view[view][1])
     
-    vrange=coords.max(axis=0) - coords.min(axis=0)
-    vrange=vrange.max()/2
+    if vrange is None:
+        # obtain the plotting range automatically
+        vrange=coords.max(axis=0) - coords.min(axis=0)
+        vrange=vrange.max()/2
+        
+        # otherwise stay with user-specified value
+        # which would be useful when multiple plots need to have the same scale
 
     if loads is not None and loads.shape==coords.shape:
         for p2, v in zip(coords, loads):
