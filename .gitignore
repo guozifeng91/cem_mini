@@ -1,2 +1,5 @@
 # Untracked files:
 src/develop.ipynb
+
+__pycache__
+.ipynb_checkpoints
