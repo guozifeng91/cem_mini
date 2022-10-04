@@ -58,7 +58,7 @@ def set_trail_paths(T, trail_paths, lbd=None, override=False):
         T: the target topology
         trail_paths: trail paths
         lbd: optional, edge length of the trail path edges
-        override: True to override exist info.
+        override: True to override exist info (i.e., remove all existing trail path specifications).
         
     ----- returns -----
         T itself
@@ -205,10 +205,25 @@ def set_original_node_positions(T,p):
     
     ----- parameters -----
         T: the topology
-        p: either dictionary {id:[x,y,z],...} or list of coords [(x,y,z),(x,y,z),...]
+        p: either dictionary {id:[x,y,z],...} or list of coords [(x,y,z),(x,y,z),...].
+        Note that if p is given as a list of coords, it should has the same length as T['original_nodes']
     '''
     T['X']['p']=p if type(p) is dict else {i:c for i, c in zip(T['original_nodes'],p)}
     
+    return T
+
+def set_constrained_planes(T, cplanes):
+    '''
+    optional, set contrained planes for the nodes of T
+    
+    ----- parameters -----
+        cplanes: a dictionary of {id:[x,y,z,nx,ny,nz]}, representing the index of nodes and the associated constrained planes. Each constrained plane should be specified as a 6-dimensional vector [x, y, z, nx, ny, nz] that representing the origin and the normal vector of the plane.
+        
+    ----- returns -----
+        the topology diagram T (which is a dictionary)
+    '''
+    
+    T['X']['cp']=cplanes
     return T
 
 def set_node_loads(T,q):
@@ -254,6 +269,10 @@ def CEM(T, epsilon=1e-5, load_func=None):
     t_in=np.zeros((n,3),np.float32) # n x 3 matrix, in-bound trail force vector of each node
     t_out=np.zeros((n,3),np.float32) # n x 3 matrix out-going trail force vector of each node
     rd=np.zeros((n,3),np.float32) # n x 3 matrix, resultant deviation vector of each node (i.e., the summation of direct and indirect vectors)
+    
+    cp_o=np.zeros((n,3), np.float32) # n x 3 matrix, origin of the constrained plane of each node
+    cp_n=np.zeros((n,3), np.float32) # n x 3 matrix, normal vector of the constrained plane of each node
+    
     u=np.zeros((n,n,3), np.float32) # n x n x 3 matrix, representing the unit vector from node i to node j
     p=np.zeros((n,3),np.float32) # n x 3 matrix, position of nodes
     q=np.zeros((n,3),np.float32) # n x 3 matrix, node loads
@@ -264,10 +283,16 @@ def CEM(T, epsilon=1e-5, load_func=None):
     for i in T['X']['q'].keys():
         q[i]=T['X']['q'][i]
     
+    if 'cp' in T['X'].keys():
+        for i in T['X']['cp'].keys():
+            cp_o[i]=T['X']['cp'][i][:3] # origin of constrained planes
+            cp_n[i]=T['X']['cp'][i][3:] # normal vector of constrained planes
+    
     mu=np.asarray(T['mu']).reshape((n,n)) # n x n matrix, absolute force magnitudes
     lbd=np.asarray(T['lbd']).reshape((n,n)) # n x n matrix, trail edge length
 
-    C=np.sign(mu)+np.sign(lbd) # symmetric adjacency matrix C, where 1 represents tension, -1 represents compression
+    # compute C after the form-finding because lbd may be overrided
+    # C=np.sign(mu)+np.sign(lbd) # symmetric adjacency matrix C, where 1 represents tension, -1 represents compression
 
     while iterative or itr==0 or load_func is not None:
         p_prev=np.copy(p) # pos of t-1 iteration
@@ -308,10 +333,36 @@ def CEM(T, epsilon=1e-5, load_func=None):
                 t_in[indices_out] = t_in[indices_k] + rd[indices_k] + q[indices_k] # (formula 7.8)
                 t_out[indices_k] = -t_in[indices_out] # (formula 7.8)
             
-            # step 3. compute position vector p_i_out (formula 7.11)
+            # step 3. compute position vector p_i_out
+            # if constrained planes are not specified (formula 7.11)
+            # or (formula 7.15) if otherwise
+            
             # note that C[indices_k,indices_out] is integrated in lbd[indices_k,indices_out]
+            # and if the constrained planes are specified, the lbd[indices_k,indices_out] will be overrided (figure 7.7c)
+            
             if k<K_max:
-                p[indices_out]=p[indices_k] + (lbd[indices_k, indices_out] / np.linalg.norm(t_out[indices_k], axis=-1))[...,None] * t_out[indices_k]
+                # u_out is the normalized t_out (formula 7.11)
+                u_out = (1.0 / np.linalg.norm(t_out[indices_k], axis=-1))[...,None] * t_out[indices_k]
+                
+                # a mask vector that indicates whether lbd (trail edge length) will be overrided
+                # mask == 1 if no constrained plane are specified (i.e., cp_n = [0,0,0]),
+                # and mask == 0 if otherwise
+                mask = 1 - np.sign(np.linalg.norm(cp_n[indices_out], axis=-1))
+
+                # the coefficient r in formula 7.15,
+                # r == 0 if no constrained plane are specified (mask == 1, cp_n == [0,0,0])
+                # and r != 0 if otherwise (mask == 0, cp_n != [0,0,0])
+                r = np.einsum("ij,ij->i",cp_o[indices_out] - p[indices_k], cp_n[indices_out]) / (mask + np.einsum("ij,ij->i",u_out, cp_n[indices_out]))
+                
+                # override trail edge length specification if necessary
+                lbd[indices_k, indices_out] = lbd[indices_k, indices_out] * mask + r
+                
+                # formula 7.11
+                p[indices_out]=p[indices_k] + lbd[indices_k, indices_out][...,None] * u_out
+                
+                # previous implementation, formula 7.11 in one line
+                # deprecated as we want to have formula 7.15 as well
+                # p[indices_out]=p[indices_k] + (lbd[indices_k, indices_out] / np.linalg.norm(t_out[indices_k], axis=-1))[...,None] * t_out[indices_k]
                 
         # next iteration
         itr+=1
@@ -325,6 +376,8 @@ def CEM(T, epsilon=1e-5, load_func=None):
             print('iteration',itr,'error', error,'finished.')
             break
     
+    C=np.sign(mu)+np.sign(lbd) # symmetric adjacency matrix C, where 1 represents tension, -1 represents compression
+
     # deviation force vector from node i to j, note that C is integrated in mu
     forces_vec=mu[...,None]*u
     # trail force vector from node i to j
