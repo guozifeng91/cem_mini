@@ -1,17 +1,38 @@
 '''
 the core module of cem_mini
 
-cem_mini is a python implementation of the Combinatorial Equilibrium Modelling (CEM) method developed by Ohlbrock, P. O. ETH Zurich, following the chapter 7 of Dr. Ohlbrock's doctoral thesis that can be downloaded from https://www.research-collection.ethz.ch/handle/20.500.11850/478732
+--- intro ---
 
-cem_mini aims to minimize the dependent libraries and attemps to stay with function oriented programming style (not yet fully, because the original T will be modified instead of making a new copy)
+cem_mini is a python implementation of the Combinatorial Equilibrium Modelling (CEM) method
+developed by Ohlbrock, P. O. ETH Zurich, following the chapter 7 of Dr. Ohlbrock's doctoral
+thesis that can be downloaded from https://www.research-collection.ethz.ch/handle/20.500.11850/478732
 
-cem_mini is validated by comparing with the compas_cem by Rafael Pastrana (https://github.com/arpastrana/compas_cem)  
+--- concept ---
+
+cem_mini aims to minimize the dependent libraries and attemps to stay with function oriented
+programming style (not yet fully, because the modifications are made on the original T rather than the copy of T)
+
+--- implementation details ---
+
+cem_mini implements the topological definition T as a pure graph, where nodes are represented as indices (integers)
+and edges are indice pairs (list of integers). there is no object-oriented implementation such as "node" or "edge" classes.
+
+the metric properties are attached to the topological definition as either dictionaries or nd-arrays.
+in case of dictionaries, the node indices are used as dictionary keys
+
+this allows the cem definition to be easily exported as json format for data exchange across different libraries.
+
+the solver function relies on numpy's matrix operations as much as possible to increase efficiency and reduce code complexity
+
+--- notes ---
+
+cem_mini is validated using 
+ - 1. the compas_cem by Rafael Pastrana (https://github.com/arpastrana/compas_cem), and
+ - 2. the cem implementation in grasshopper by Ohlbrock, P. O. and D'Acunto, P. (https://github.com/OleOhlbrock/CEM)
 
 cem_mini is implemented by: Z. Guo
 
----
-
-variable names:
+--- variable name scope ---
 
 F: form
 Fc: force
@@ -162,11 +183,13 @@ def set_deviation_edge_force_magnitude(T, mu):
     '''
     this function is useful if multiple mu are to be generated automatically
     
-    specify the tension-compression states as well as the force magnitude for all deviation edges for T, if such information was not specified when setting edges
+    specify the tension-compression states as well as the force magnitude for
+    all deviation edges for T, if such information was not specified when setting edges
     
     ----- parameters -----
         T: the target topology
-        mu: list of floats, the force magnitude + combinatorial states of all deviation edges (positive number for tension, negative for compression)
+        mu: list of floats, the force magnitude + combinatorial states of all
+        deviation edges (positive number for tension, negative for compression)
         
     ----- returns -----
         T itself
@@ -183,11 +206,13 @@ def set_trail_edge_length(T, lbd):
     '''
     this function is useful if multiple mu are to be generated automatically
     
-    specify the tension-compression states as well as the edge length for all trail edges for T, if such information was not specified when setting edges
+    specify the tension-compression states as well as the edge length for all
+    trail edges for T, if such information was not specified when setting edges
     
     ----- parameters -----
         T: the target topology
-        lbd: the edge length + combinatorial states of all deviation edges (positive number for tension, negative for compression)
+        lbd: the edge length + combinatorial states of all deviation edges
+        (positive number for tension, negative for compression)
         
     ----- returns -----
         T itself
@@ -229,7 +254,10 @@ def set_constrained_planes(T, cplanes):
     optional, set contrained planes for the nodes of T
     
     ----- parameters -----
-        cplanes: a dictionary of {id:[x,y,z,nx,ny,nz]}, representing the index of nodes and the associated constrained planes. Each constrained plane should be specified as a 6-dimensional vector [x, y, z, nx, ny, nz] that representing the origin and the normal vector of the plane.
+        cplanes: a dictionary of {id:[x,y,z,nx,ny,nz]}, representing the index
+        of nodes and the associated constrained planes. Each constrained plane
+        should be specified as a 6-dimensional vector [x, y, z, nx, ny, nz] that
+        representing the origin and the normal vector of the plane.
         
     ----- returns -----
         the topology diagram T (which is a dictionary)
@@ -250,19 +278,21 @@ def set_node_loads(T,q):
 
 def CEM(T, epsilon=1e-5, load_func=None):
     '''
-    the CEM algorithm, implemented based on the chapter 7 of Combinatorial Equilibrium Modelling, by Ohlbrock, P. O. ETH Zurich 
+    the CEM algorithm, implemented based on the chapter 7 of
+    Combinatorial Equilibrium Modelling, by Ohlbrock, P. O. ETH Zurich 
     
     ----- parameters -----
         T: topology diagram
         epsilon: threshold value for iterative process, default 1e-5
-        load_func: a callable f(i, p) which returns form-dependent loads, where the arguments i and p are the index and position of vertex
+        load_func: a callable f(i, p) which returns form-dependent loads,
+        where the arguments i and p are the index and position of vertex
     
     ----- returns -----
         form and force diagrams, both are dictionaries
         
     ----- notes -----
         it is necessary to specify external loads in X even when load_func is given,
-        because the spatial position of most vertices are unknown in the initial iteration
+        this is because the spatial position of most vertices are unknown in the initial iteration
     '''
     n=T['n']
     indices=np.arange(n)
