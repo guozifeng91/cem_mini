@@ -9,11 +9,11 @@ the doctoral thesis can be downloaded in https://www.research-collection.ethz.ch
 cem_mini is implemented by: Z. Guo
 ---
 
-variable name space:
+variable names:
 
-F: form diagram
-Fc: force diagram
-T: topology diagram
+F: form
+Fc: force
+T: topology
 
 c: combinatorial states (1 for tension, -1 for compression)
 w: topological distance, which is equal to the number of trail edges in-between vertex v_i and its corresponding support vertex.
@@ -379,18 +379,51 @@ def CEM(T, epsilon=1e-5, load_func=None):
     C=np.sign(mu)+np.sign(lbd) # symmetric adjacency matrix C, where 1 represents tension, -1 represents compression
 
     # deviation force vector from node i to j, note that C is integrated in mu
-    forces_vec=mu[...,None]*u
+    force_matrix=mu[...,None]*u
     # trail force vector from node i to j
     i,j = np.asarray(T['trail_edges']).T
-    forces_vec[i,j]=t_out[i]
-    forces_vec[j,i]=t_in[j]
+    force_matrix[i,j]=t_out[i]
+    force_matrix[j,i]=t_in[j]
     
     # force magnitude matrix of edge i-j
-    forces=np.sqrt(np.sum(forces_vec**2,axis=-1)) * C
-    Fc={'n':n,'forces_vec':forces_vec, 'trail_forces_out':t_out,'forces':forces,'loads':q} # force diagram
+    force_mag_matrix=np.sqrt(np.sum(force_matrix**2,axis=-1)) * C
 
     edges=list(T['trail_edges'])+list(T['deviation_edges'])
-    edge_forces=[forces[i,j] for i,j in edges] # force magnitude of edge i-j
-    F={'n':n,'coords':p,'edges':edges, 'edge_forces':edge_forces, 'loads':q} # form diagram
+    edge_forces=[force_mag_matrix[i,j] for i,j in edges] # force magnitude of edge i-j
+    F={'n':n,
+       'coords':p,
+       'edges':edges,
+       'edge_forces':edge_forces,
+       'loads':q} # form diagram
     
+    Fc={'n':n,
+        'edges':edges,
+        'node2node_force_vec_matrix':force_matrix,
+        'node2node_force_mag_matrix':force_mag_matrix,
+        'trail_forces_in':t_in,
+        'trail_forces_out':t_out,
+        'loads':q} # force diagram
+
     return F, Fc
+
+def _json_serializable_arr(x):
+    if type(x) is np.ndarray:
+        return x.tolist() # numpy does this for us
+    elif hasattr(x,'__len__') and (type(x) is not str):
+        return [_json_serializable_arr(i) for i in x] # mixture of numpy + list + tuple
+    else:
+        return x
+
+def _json_serializable_dict(x):
+    return {str(k):(_json_serializable_dict(x[k]) if type(x[k]) is dict else _json_serializable_arr(x[k])) for k in x.keys()}
+    
+import json
+def export_cem(fname, T):
+    T=_json_serializable_dict(T)
+    with open(fname, 'w') as f:
+        json.dump(T, f)
+        
+def import_cem(fname):
+    with open(fname, 'r') as f:
+        T=json.load(f)
+    return T
