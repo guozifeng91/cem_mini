@@ -1,4 +1,6 @@
 '''
+the core module of cem_mini
+
 cem_mini is a python implementation of the Combinatorial Equilibrium Modelling (CEM) method developed by Ohlbrock, P. O. ETH Zurich, following the chapter 7 of Dr. Ohlbrock's doctoral thesis that can be downloaded from https://www.research-collection.ethz.ch/handle/20.500.11850/478732
 
 cem_mini aims to minimize the dependent libraries and attemps to stay with function oriented programming style (not yet fully, because the original T will be modified instead of making a new copy)
