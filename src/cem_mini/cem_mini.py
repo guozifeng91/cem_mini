@@ -1,12 +1,12 @@
 '''
-cem_mini is a python replica of the CEM method developed by Ohlbrock, P. O. ETH Zurich
-cem_mini aims to minimize the dependent libraries and attemps to stay with function oriented programming style
+cem_mini is a python implementation of the Combinatorial Equilibrium Modelling (CEM) method developed by Ohlbrock, P. O. ETH Zurich, following the chapter 7 of Dr. Ohlbrock's doctoral thesis that can be downloaded from https://www.research-collection.ethz.ch/handle/20.500.11850/478732
+
+cem_mini aims to minimize the dependent libraries and attemps to stay with function oriented programming style (not yet fully, because the original T will be modified instead of making a new copy)
+
 cem_mini is validated by comparing with the compas_cem by Rafael Pastrana (https://github.com/arpastrana/compas_cem)  
 
-the equations mentioned below are from the doctoral thesis Combinatorial Equilibrium Modelling by Ohlbrock, P. O., ETH Zurich
-the doctoral thesis can be downloaded in https://www.research-collection.ethz.ch/handle/20.500.11850/478732
-
 cem_mini is implemented by: Z. Guo
+
 ---
 
 variable names:
@@ -20,7 +20,7 @@ w: topological distance, which is equal to the number of trail edges in-between 
 u: unit directional vector between nodes
 rd: resultant deviation vector of nodes
 
-lbd: trail edge length + combinatorial states
+lbd: (i.e., lambda) trail edge length + combinatorial states
 mu: absolute force magnitude of the deviation edges + combinatorial states
     
 X: design information, which contains:
@@ -31,9 +31,15 @@ X: design information, which contains:
 import numpy as np
 
 def to_edge_indice(i,j,n):
+    '''
+    compute the edge indice from node indices (i,j) and totoal num of nodes n
+    '''
     return i*n+j
 
 def from_edge_indice(ei,n):
+    '''
+    compute nodes indices (i,j) from edge indice
+    '''
     return ei//n,ei%n
 
 def create_topology(num_nodes=8):
@@ -47,6 +53,10 @@ def create_topology(num_nodes=8):
         the topology diagram T (which is a dictionary)
     '''
     n=num_nodes
+    
+    # number of edges in a complete graph that has n nodes
+    # the reason that we use complete graph is that the edges are not yet specified and can be any topology
+    # and we need a systematic way to represent these edges
     ne=n**2
     return {'n':n, 'lbd':[0]*ne,'mu':[0]*ne,'X':{}}
 
@@ -73,7 +83,7 @@ def set_trail_paths(T, trail_paths, lbd=None, override=False):
         
         - lbd are combinatorial states + edge length of the edges of each trail path
         - lbd should be given as list of lists, e.g., [[3,2,-5,...], ...]
-        - lbd[i][j] corresponds to the combinatorial states as well as the edge length of trail_paths[i][j:j+2]
+        - lbd[i][j] corresponds to the combinatorial states plus the edge length of trail edge trail_paths[i][j:j+2]
         - therefore, len(trail_path[i]) = len(c_path[i])+1
         - lbd indicates tension edges with positive values and compression edges with negative values
 
@@ -290,7 +300,7 @@ def CEM(T, epsilon=1e-5, load_func=None):
     
     mu=np.asarray(T['mu']).reshape((n,n)) # n x n matrix, absolute force magnitudes
     lbd=np.asarray(T['lbd']).reshape((n,n)) # n x n matrix, trail edge length
-
+        
     # compute C after the form-finding because lbd may be overrided
     # C=np.sign(mu)+np.sign(lbd) # symmetric adjacency matrix C, where 1 represents tension, -1 represents compression
 
@@ -324,12 +334,12 @@ def CEM(T, epsilon=1e-5, load_func=None):
             rd[indices_k]=np.sum((mu[indices_k])[...,None] * u[indices_k],axis=1)
             
             # step 2. compute outgoing trail force vector t_i_out (formula 7.8, formula 7.12)
-            if k==0:
+            if k==0: # original nodes
                 t_in[indices_out] = rd[indices_k] + q[indices_k] # (formula 7.8)
                 t_out[indices_k] = -t_in[indices_out] # (formula 7.8)
-            elif k==K_max:
+            elif k==K_max: # support (final) nodes
                 t_out[indices_k] = -(t_in[indices_k] + rd[indices_k] + q[indices_k]) # (formula 7.8)
-            else: # k>0
+            else: # k>0, trail-path nodes
                 t_in[indices_out] = t_in[indices_k] + rd[indices_k] + q[indices_k] # (formula 7.8)
                 t_out[indices_k] = -t_in[indices_out] # (formula 7.8)
             
@@ -344,7 +354,7 @@ def CEM(T, epsilon=1e-5, load_func=None):
                 # u_out is the normalized t_out (formula 7.11)
                 u_out = (1.0 / np.linalg.norm(t_out[indices_k], axis=-1))[...,None] * t_out[indices_k]
                 
-                # a mask vector that indicates whether lbd (trail edge length) will be overrided
+                # a mask vector that indicates whether lbd (i.e., trail edge length) will be overrided
                 # mask == 1 if no constrained plane are specified (i.e., cp_n = [0,0,0]),
                 # and mask == 0 if otherwise
                 mask = 1 - np.sign(np.linalg.norm(cp_n[indices_out], axis=-1))
@@ -354,10 +364,11 @@ def CEM(T, epsilon=1e-5, load_func=None):
                 # and r != 0 if otherwise (mask == 0, cp_n != [0,0,0])
                 r = np.einsum("ij,ij->i",cp_o[indices_out] - p[indices_k], cp_n[indices_out]) / (mask + np.einsum("ij,ij->i",u_out, cp_n[indices_out]))
                 
-                # override trail edge length specification if necessary
+                # override trail edge length specification if constrained planes are given
+                # lbd = lbd * mask + r
                 lbd[indices_k, indices_out] = lbd[indices_k, indices_out] * mask + r
                 
-                # formula 7.11
+                # formula 7.11, with updated lbd
                 p[indices_out]=p[indices_k] + lbd[indices_k, indices_out][...,None] * u_out
                 
                 # previous implementation, formula 7.11 in one line
@@ -377,7 +388,8 @@ def CEM(T, epsilon=1e-5, load_func=None):
             break
     
     C=np.sign(mu)+np.sign(lbd) # symmetric adjacency matrix C, where 1 represents tension, -1 represents compression
-
+    T['lbd_cplane_override'] = lbd.flatten() # new lbd computed from the constrained plane specification, in contrast to the original lbd
+        
     # deviation force vector from node i to j, note that C is integrated in mu
     force_matrix=mu[...,None]*u
     # trail force vector from node i to j
@@ -407,15 +419,18 @@ def CEM(T, epsilon=1e-5, load_func=None):
     return F, Fc
 
 def _json_serializable_arr(x):
-    if type(x) is np.ndarray:
-        return x.tolist() # numpy does this for us
-    elif hasattr(x,'__len__') and (type(x) is not str):
-        return [_json_serializable_arr(i) for i in x] # mixture of numpy + list + tuple
-    elif np.issubdtype(type(x) , np.integer):
+    '''
+    convert a nd-array to list of lists
+    '''
+    if type(x) is np.ndarray: # numpy array
+        return x.tolist()
+    elif hasattr(x,'__len__') and (type(x) is not str): # list-liked object, such as the mixture of numpy + list + tuple
+        return [_json_serializable_arr(i) for i in x] 
+    elif np.issubdtype(type(x) , np.integer): # numpy integer
         return int(x)
-    elif np.issubdtype(type(x) , np.inexact):
+    elif np.issubdtype(type(x) , np.inexact): # numpy float
         return float(x)
-    else:
+    else: # other data
         return x
 
 def _json_serializable_dict(x):
@@ -423,11 +438,17 @@ def _json_serializable_dict(x):
     
 import json
 def export_cem(fname, T):
+    '''
+    export a CEM definition (T, F, or Fc) to a json file
+    '''
     T=_json_serializable_dict(T)
     with open(fname, 'w') as f:
         json.dump(T, f)
         
 def import_cem(fname):
+    '''
+    import a CEM definition from a json file
+    '''
     with open(fname, 'r') as f:
         T=json.load(f)
     return T
