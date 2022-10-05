@@ -411,6 +411,10 @@ def _json_serializable_arr(x):
         return x.tolist() # numpy does this for us
     elif hasattr(x,'__len__') and (type(x) is not str):
         return [_json_serializable_arr(i) for i in x] # mixture of numpy + list + tuple
+    elif np.issubdtype(type(x) , np.integer):
+        return int(x)
+    elif np.issubdtype(type(x) , np.inexact):
+        return float(x)
     else:
         return x
 
