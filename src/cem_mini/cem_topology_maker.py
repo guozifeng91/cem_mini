@@ -212,8 +212,9 @@ def cubic_grid_tower_topology(nx, ny, nz,
     cem_mini.set_trail_paths(T, trail_paths, [[trail_len()] * (len(t)-1) for t in trail_paths])
     cem_mini.set_deviation_edges(T,deviation_edges,dev_force_mag)
     
+    # cell size
     cx=sizex()
-    cy=sizex()
+    cy=sizey()
     
     if floorheight is None:
         cem_mini.set_original_node_positions(T,{j*nx+i:[i*cx, j*cy, (nz-1)*3] for i in range(nx) for j in range(ny)})
