@@ -81,7 +81,8 @@ def create_topology(num_nodes=8):
     # the reason that we use complete graph is that the edges are not yet specified and can be any topology
     # and we need a systematic way to represent these edges
     ne=n**2
-    return {'n':n, 'lbd':[0]*ne,'mu':[0]*ne,'X':{}}
+    # bug fix: set initial value to 0.0 to prevent initialized as integers
+    return {'n':n, 'lbd':[0.0]*ne,'mu':[0.0]*ne,'X':{}}
 
 def set_trail_paths(T, trail_paths, lbd=None, override=False):
     '''
@@ -129,7 +130,7 @@ def set_trail_paths(T, trail_paths, lbd=None, override=False):
             print('The lbd should have the same length with trail_path!')
         else:
             if override:
-                T['lbd']=[0]*(n**2)
+                T['lbd']=[0.0]*(n**2) # fix: change 0 to 0.0
                 
             for tp, lbd_ in zip(trail_paths, lbd): # for each trail path
                 for edge_i in range(len(lbd_)): # for each trail edge
@@ -170,7 +171,7 @@ def set_deviation_edges(T, deviation_edges, mu=None, override=False):
             print('The length of mu should be the length of deviation_edges!')
         else:
             if override:
-                T['mu']=[0]*(n**2)
+                T['mu']=[0.0]*(n**2) # fix: change 0 to 0.0
                 
             for e, mu_ in zip(deviation_edges, mu):
                 i,j=e
@@ -308,6 +309,8 @@ def CEM(T, epsilon=1e-5, load_func=None):
     trail_path_down={p[i]:p[i+1] for p in trail_paths for i in range(len(p)-1)} # dict, k nodes to k+1 nodes   
     trail_path_up={p[-i]:p[-i-1] for p in trail_paths for i in range(1, len(p))} # dict, k nodes to k-1 nodes   
     
+    # to float64 ?
+    
     t_in=np.zeros((n,3),np.float32) # n x 3 matrix, in-bound trail force vector of each node
     t_out=np.zeros((n,3),np.float32) # n x 3 matrix out-going trail force vector of each node
     rd=np.zeros((n,3),np.float32) # n x 3 matrix, resultant deviation vector of each node (i.e., the summation of direct and indirect vectors)
@@ -381,7 +384,7 @@ def CEM(T, epsilon=1e-5, load_func=None):
             
             # note that C[indices_k,indices_out] is integrated in lbd[indices_k,indices_out]
             # and if the constrained planes are specified, the lbd[indices_k,indices_out] will be overrided (figure 7.7c)
-            
+
             if k<K_max:
                 # u_out is the normalized t_out (formula 7.11)
                 u_out = (1.0 / np.linalg.norm(t_out[indices_k], axis=-1))[...,None] * t_out[indices_k]
@@ -394,12 +397,12 @@ def CEM(T, epsilon=1e-5, load_func=None):
                 # the coefficient r in formula 7.15,
                 # r == 0 if no constrained plane are specified (mask == 1, cp_n == [0,0,0])
                 # and r != 0 if otherwise (mask == 0, cp_n != [0,0,0])
-                r = np.einsum("ij,ij->i",cp_o[indices_out] - p[indices_k], cp_n[indices_out]) / (mask + np.einsum("ij,ij->i",u_out, cp_n[indices_out]))
+                r = np.einsum("ij,ij->i",cp_o[indices_out] - p[indices_k], cp_n[indices_out], dtype=np.float64) / (mask + np.einsum("ij,ij->i",u_out, cp_n[indices_out], dtype=np.float64))
                 
                 # override trail edge length specification if constrained planes are given
                 # lbd = lbd * mask + r
                 lbd[indices_k, indices_out] = lbd[indices_k, indices_out] * mask + r
-                
+
                 # formula 7.11, with updated lbd
                 p[indices_out]=p[indices_k] + lbd[indices_k, indices_out][...,None] * u_out
                 

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from .cem_mini import *
 from .cem_plots import *
+from .cem_topology_maker import *
 
 def _make_plots(F,view='2D-XY'):
     plt.figure(figsize=(8,8))
@@ -88,6 +89,27 @@ def tree_2d():
     
     # visualize form diagram
     _make_plots(F)
+    
+    return T, F, Fc
+
+def random_tower(nx=4,ny=4,nz=10, floor_heights=[4,8]):
+    '''
+    the optimization part was not implemented
+    '''
+    T = cubic_grid_tower_topology(nx,ny,nz,floorheight=discrete_sampler(floor_heights))
+    F, Fc= CEM(T,1e-7)
+    
+    # visualize form diagram
+    plt.figure(figsize=(16,8))
+    ax=plt.axes([0,0,0.5,1], projection='3d')
+    cem_mini.plot_cem_form(ax,F['coords'],F['edges'],F['edge_forces'],view='3D-45',thickness_base=0.5,thickness_ratio=0.02)
+    plt.axis('on')
+    
+    ax=plt.axes([0.5,0,0.5,1], projection='3d')
+    cem_mini.plot_cem_form(ax,F['coords'],F['edges'],F['edge_forces'],view='2D-XZ',thickness_base=0.5,thickness_ratio=0.02)
+    plt.axis('on')
+    
+    plt.show()
     
     return T, F, Fc
     

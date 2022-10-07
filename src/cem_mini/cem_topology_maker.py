@@ -1,4 +1,5 @@
 import numpy as np
+import cem_mini
 
 def get_symmetrical_edges(nx, ny, mode_b=False):
     '''
@@ -73,10 +74,45 @@ def get_symmetrical_edges(nx, ny, mode_b=False):
     
     return indices_x, indices_y
 
+def uniform_sampler(low,high,seed=None):
+    rnd = np.random.default_rng(seed)
+    def call():
+        return rnd.uniform(low, high)
+    return call
+        
+def normal_sampler(mean,std,seed=None):
+    rnd = np.random.default_rng(seed)
+    def call():
+        return rnd.normal(mean, std)
+    return call
 
-# how to generate the 2D grid pattern??
+def discrete_sampler(items,seed=None):
+    rnd = np.random.default_rng(seed)
+    def call():
+        return items[rnd.integers(len(items))]
+    return call
 
-def cubic_grid_tower_topology(nx, ny, nz, no_bottom_dev=True):
+def constant_sampler(c):
+    def call():
+        return c
+    return call
+
+def bool_sampler(ratio=0.5, seed=None):
+    rnd = np.random.default_rng(seed)
+    def call():
+        return rnd.uniform(0,1)<ratio
+    return call
+    
+def cubic_grid_tower_topology(nx, ny, nz,
+                              dev_mag_default=constant_sampler(0.01),
+                              dev_mag_pattern=discrete_sampler([-0.5, 0.5]),
+                              sym_pattern_select=bool_sampler(0.5),
+                              trail_len=constant_sampler(-3),
+                              sizex=discrete_sampler([3,4,5]),
+                              sizey=discrete_sampler([3,4,5]),
+                              floorheight=discrete_sampler([3,4,5]),
+                              loads=[0,0,-10],
+                              no_bottom_dev=True):
     '''
     create a topology of 3D grid that represent a tower.
     
@@ -84,6 +120,18 @@ def cubic_grid_tower_topology(nx, ny, nz, no_bottom_dev=True):
     nx: number of nodes in x direction, must >=2
     ny: number of nodes in y direction, must >=2
     nz: number of nodes in z direction, must >=2
+    
+    dev_mag_default: a callable which returns a random sampling of the default deviation force magitude
+    dev_mag_pattern: a callable which returns a random sampling of the deviation force magitude
+    sym_pattern_select: a callable which returns a boolean random sampling whether
+                        to accept a group of symmetrical edges for assigning random values
+    trail_len: a callable which returns a random sampling of the trail edge length
+    sizex: a callable which returns a random sampling of the cell size x
+    sizey: a callable which returns a random sampling of the cell size y
+    floorheight: a callable which returns a random sampling of the floor height
+                 if floorheight is given, it will generate constrained planes to
+                 the result topology and potentially override the trail_len specification
+                     
     no_bottom_dev: if True, no deviation edges will be generated between the nodes of the bottom 2D grid
     
     ---- returns ----
@@ -119,18 +167,18 @@ def cubic_grid_tower_topology(nx, ny, nz, no_bottom_dev=True):
     if nx<2 or ny<2 or nz<2:
         raise Exception("number of nodes must >= 2 in x, y, and z directions")
     
-    size_xy=nx*ny
+    n_xy=nx*ny
     # z-axis trail edges (i.e., tower columns)
-    trail_paths = [[i+size_xy*z for z in range(nz)] for i in range(size_xy)]
+    trail_paths = [[i+n_xy*z for z in range(nz)] for i in range(n_xy)]
     # x-axis deviation edges
-    deviation_edges_x = [[(size_xy*z+y*nx+x, size_xy*z+y*nx+x+1) for y in range(ny) for x in range(nx-1)] for z in range(nz-1 if no_bottom_dev else nz)]
+    deviation_edges_x = [[(n_xy*z+y*nx+x, n_xy*z+y*nx+x+1) for y in range(ny) for x in range(nx-1)] for z in range(nz-1 if no_bottom_dev else nz)]
     # y-axis deviation edges
-    deviation_edges_y = [[(size_xy*z+y*nx+x, size_xy*z+(y+1)*nx+x) for y in range(ny-1) for x in range(nx)] for z in range(nz-1 if no_bottom_dev else nz)]
+    deviation_edges_y = [[(n_xy*z+y*nx+x, n_xy*z+(y+1)*nx+x) for y in range(ny-1) for x in range(nx)] for z in range(nz-1 if no_bottom_dev else nz)]
     # slabs, sorted by floor order
     deviation_edges = [e for ex,ey in zip(deviation_edges_x, deviation_edges_y) for e in ex+ey] # list of edges
-    dev_force_mag = [0.01] * len(deviation_edges)
+    dev_force_mag = [dev_mag_default() for _ in range(len(deviation_edges))] # default dev force mag
     
-    print(deviation_edges)
+#     print(deviation_edges)
     # num of X-EDGES (edges in parallel with x axis)
     num_edges_x = (nx-1) * ny
     # num of Y-EDGES (edges in parallel with y axis)
@@ -142,12 +190,39 @@ def cubic_grid_tower_topology(nx, ny, nz, no_bottom_dev=True):
     # convert indices of Y-EDGES to indices of ALL-EDGES
     indices_y = [[i+num_edges_x for i in iy] for iy in indices_y]
     
-    # debug, validate the symmetrical edges
-    print('trails', trail_paths, '\n')
-    print('sym dev edges, X-EDGES', [[[deviation_edges[i + z*(num_edges_x+num_edges_y)] for i in ix] for ix in indices_x] for z in range(nz-1 if no_bottom_dev else nz)], '\n')
-    print('sym dev edges, Y-EDGES', [[[deviation_edges[i + z*(num_edges_x+num_edges_y)] for i in iy] for iy in indices_y] for z in range(nz-1 if no_bottom_dev else nz)], '\n')
-    
     # for each group of symmetrical edges in each floor, randomly generate the force magnitudes
     # i.e., specify the values of dev_force_mag[]
+    for z in range(nz-1 if no_bottom_dev else nz):
+        i_offset = z*(num_edges_x+num_edges_y)
+        for ix in indices_x: # for each symmetrical group
+            if sym_pattern_select(): # group selected?
+                value=dev_mag_pattern() * (z+1) # make a sample
+                for i in ix: # assign the sample value to the group
+                    dev_force_mag[i + i_offset] = value
+        
+        for iy in indices_y: # for each symmetrical group
+            if sym_pattern_select(): # group selected?
+                value=dev_mag_pattern() * (z+1) # make a sample
+                for i in iy: # assign the sample value to the group
+                    dev_force_mag[i + i_offset] = value
     
+#     print(dev_force_mag)
+
+    T=cem_mini.create_topology(nx*ny*nz)
+    cem_mini.set_trail_paths(T, trail_paths, [[trail_len()] * (len(t)-1) for t in trail_paths])
+    cem_mini.set_deviation_edges(T,deviation_edges,dev_force_mag)
     
+    cx=sizex()
+    cy=sizex()
+    
+    if floorheight is None:
+        cem_mini.set_original_node_positions(T,{j*nx+i:[i*cx, j*cy, (nz-1)*3] for i in range(nx) for j in range(ny)})
+    else:
+        node_z=np.cumsum([floorheight() if z>0 else 0 for z in range(nz)])[::-1]
+
+        cem_mini.set_original_node_positions(T,{j*nx+i:[i*cx, j*cy, node_z[0]] for i in range(nx) for j in range(ny)})
+        cem_mini.set_constrained_planes(T,{(k*nx*ny+j*nx+i):[i*cx, j*cy, node_z[k], 0, 0, 1] for i in range(nx) for j in range(ny) for k in range(nz)})
+    
+    cem_mini.set_node_loads(T,{i:loads for i in range(nx*ny*nz)})
+
+    return T
