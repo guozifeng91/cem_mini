@@ -18,7 +18,7 @@ the implementation is validated using [CEM Grasshopper](https://github.com/OleOh
 
 some basic examples [source code](src/cem_mini/cem_examples.py) and [jupyter notebook](src/examples.ipynb )
 
-examples on making [bridges](src/cem_mini/example_bridges.ipynb)
+examples on making [bridges](src/example_bridges.ipynb)
 
 ![Alt text](quick_start.png?raw=true "quick start")
 
