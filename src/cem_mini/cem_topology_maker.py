@@ -103,6 +103,8 @@ def bool_sampler(ratio=0.5, seed=None):
         return rnd.uniform(0,1)<ratio
     return call
 
+samplers={uniform_sampler, normal_sampler, discrete_sampler, constant_sampler, bool_sampler}
+
 def cubic_grid_graph(nx,ny,nz, no_bottom_dev=False):
     '''
     create a topology of 3D grid
