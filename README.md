@@ -27,3 +27,5 @@ examples on making [bridges](src/cem_mini/example_bridges.ipynb)
 ![Alt text](bridge.png?raw=true "bridge 2d")
 
 ![Alt text](random-tower.png?raw=true "random tower")
+
+![Alt text](bridge2.png?raw=true "bridge 3d")
