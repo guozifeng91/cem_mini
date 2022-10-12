@@ -16,7 +16,9 @@ the implementation is validated using [CEM Grasshopper](https://github.com/OleOh
 
 ## examples
 
-see examples [source code](src/cem_mini/cem_examples.py) and [jupyter notebook](src/examples.ipynb )
+some basic examples [source code](src/cem_mini/cem_examples.py) and [jupyter notebook](src/examples.ipynb )
+
+examples on making [bridges](src/cem_mini/example_bridges.ipynb)
 
 ![Alt text](quick_start.png?raw=true "quick start")
 
@@ -25,6 +27,3 @@ see examples [source code](src/cem_mini/cem_examples.py) and [jupyter notebook](
 ![Alt text](bridge.png?raw=true "bridge 2d")
 
 ![Alt text](random-tower.png?raw=true "random tower")
-
-
-
