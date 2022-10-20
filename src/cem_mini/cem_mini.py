@@ -385,7 +385,7 @@ def _compute_topological_distances(T):
     n=T['n']
     trail_paths=T['trail_paths']
 
-    # set default value to -1 to detect dangling nodes
+    # set default value to -1 to detect unused nodes
     w=np.zeros((n,),np.int32) - 1
 
     for path in trail_paths:
@@ -456,7 +456,7 @@ def CEM(T, epsilon=1e-5, load_func=None):
 
     w=_compute_topological_distances(T) # topological distances w of each node
     K=w.max()-w # sequence k of each node
-    K[w<0] = -1 # remove dangling
+    K[w<0] = -1 # remove unused nodes
     K_max=K.max()
 
     iterative=any([w[ns]!=w[ne] for ns,ne in T['deviation_edges']]) # whether the equilibrium states require iterative solving process
