@@ -464,10 +464,18 @@ def CEM(T, epsilon=1e-5, load_func=None):
 
     trail_paths=T['trail_paths'] # list of lists, representing the trail path, from start (original) to end (support)
     trail_path_down={p[i]:p[i+1] for p in trail_paths for i in range(len(p)-1)} # dict, k nodes to k+1 nodes
-    trail_path_up={p[-i]:p[-i-1] for p in trail_paths for i in range(1, len(p))} # dict, k nodes to k-1 nodes
+
+    # trail_path_up={p[-i]:p[-i-1] for p in trail_paths for i in range(1, len(p))} # dict, k nodes to k-1 nodes
+
+    # 2022-11-03:
+    # set trail_path_up[initial_nodes] to self (before was key-not-exist)
+    # this is to fix a problem caused by unequal length of trail paths, when inital nodes
+    # whose k < k_max attempt to retrieve trail_path_up[initial_nodes] that do not exist
+    # set trail_path_up[initial_nodes] = initial_nodes will always return [0,0,0] for
+    # the correspinding t_in[initial_nodes], which does not affect the computation results.
+    trail_path_up={p[-i]:(p[-i-1] if i > 0 else i) for p in trail_paths for i in range(0, len(p))} # dict, k nodes to k-1 nodes
 
     # to float64 ?
-
     t_in=np.zeros((n,3),np.float32) # n x 3 matrix, in-bound trail force vector of each node
     t_out=np.zeros((n,3),np.float32) # n x 3 matrix out-going trail force vector of each node
     rd=np.zeros((n,3),np.float32) # n x 3 matrix, resultant deviation vector of each node (i.e., the summation of direct and indirect vectors)
@@ -641,10 +649,23 @@ def export_cem(fname, T):
     with open(fname, 'w') as f:
         json.dump(T, f)
 
+def _str_key_to_int(d):
+    return {int(k): d[k] for k in d.keys()}
+
 def import_cem(fname):
     '''
     import a CEM definition from a json file
     '''
     with open(fname, 'r') as f:
         T=json.load(f)
+
+    if 'X' in T.keys(): # is topology definition?
+        d = T['X']
+        if 'p' in d.keys(): # p exists?
+            d['p']=_str_key_to_int(d['p'])
+        if 'q' in d.keys(): # p exists?
+            d['q']=_str_key_to_int(d['q'])
+        if 'cp' in d.keys(): # cp exists?
+            d['cp']=_str_key_to_int(d['cp'])
+
     return T
