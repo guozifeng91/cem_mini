@@ -437,17 +437,17 @@ def set_node_loads(T,q):
     '''
     T['X']['q']=q
 
-def CEM(T, epsilon=1e-5, load_func=None):
+def CEM(T, epsilon=1e-5, load_func=None, show_info=False):
     '''
     the CEM algorithm, implemented based on the chapter 7 of
     Combinatorial Equilibrium Modelling, by Ohlbrock, P. O. ETH Zurich
 
     ----- parameters -----
-        T: topology diagram
-        epsilon: threshold value for iterative process, default 1e-5
-        load_func: a callable f(i, p) which returns form-dependent loads,
-        where the arguments i and p are the index and position of vertex
-
+        T:          topology diagram
+        epsilon:    threshold value for iterative process, default 1e-5
+        load_func:  a callable f(i, p) which returns form-dependent loads,
+                    where the arguments i and p are the index and position of vertex
+        show_info:  whether to show the iteration info when solving CEM
     ----- returns -----
         form and force diagrams, both are dictionaries
     '''
@@ -580,15 +580,17 @@ def CEM(T, epsilon=1e-5, load_func=None):
         itr+=1
         error=np.sum((p-p_prev)**2)
 
-        if itr%10==1:
-            if itr==1:
-                print('iteration',itr,end='\r')
-            else:
-                print('iteration',itr,'error', error,end='\r')
+        if show_info:
+            if itr%10==1:
+                if itr==1:
+                    print('iteration',itr,end='\r')
+                else:
+                    print('iteration',itr,'error', error,end='\r')
 
         # quit itertion if the result converges
         if error <= epsilon:
-            print('iteration',itr,'error', error,'finished.')
+            if show_info:
+                print('iteration',itr,'error', error,'finished.')
             break
 
     C=np.sign(mu)+np.sign(lbd) # symmetric adjacency matrix C, where 1 represents tension, -1 represents compression
