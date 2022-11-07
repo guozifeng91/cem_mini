@@ -641,23 +641,41 @@ def _json_serializable_dict(x):
     return {str(k):(_json_serializable_dict(x[k]) if type(x[k]) is dict else _json_serializable_arr(x[k])) for k in x.keys()}
 
 import json
-def export_cem(fname, T):
+def export_cem(f, T):
     '''
     export a CEM definition (T, F, or Fc) to a json file
+
+    --- parameters ---
+    f: a filename or a file-liked object that is writable
+    T: CEM difinition (T, F, or Fc) to export
     '''
     T=_json_serializable_dict(T)
-    with open(fname, 'w') as f:
+
+    if hasattr(f, 'write'):
         json.dump(T, f)
+    elif type(f) is str:
+        with open(f, 'w') as f_:
+            json.dump(T, f_)
+    else:
+        raise Exception('unsupported input parameter f as',f)
 
 def _str_key_to_int(d):
     return {int(k): d[k] for k in d.keys()}
 
-def import_cem(fname):
+def import_cem(f):
     '''
     import a CEM definition from a json file
+
+    --- parameters ---
+    f: a filename or a file-liked object that is readable
     '''
-    with open(fname, 'r') as f:
+    if hasattr(f,'read'):
         T=json.load(f)
+    elif type(f) is str:
+        with open(f, 'r') as f_:
+            T=json.load(f_)
+    else:
+        raise Exception('unsupported input parameter f as',f)
 
     if 'X' in T.keys(): # is topology definition?
         d = T['X']
