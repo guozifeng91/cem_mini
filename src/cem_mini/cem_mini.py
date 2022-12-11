@@ -554,12 +554,12 @@ def CEM(T, epsilon=1e-5, load_func=None, show_info=False):
             if k<K_max:
                 # u_out is the normalized t_out (formula 7.11)
                 u_out = (1.0 / np.linalg.norm(t_out[indices_k], axis=-1))[...,None] * t_out[indices_k]
-
+                if np.any(np.isnan(u_out)): raise Exception('numerical error (nan) occured') # add 2022-12-11 for debugging
                 # a mask vector that indicates whether lbd (i.e., trail edge length) will be overrided
                 # mask == 1 if no constrained plane are specified (i.e., cp_n = [0,0,0]),
                 # and mask == 0 if otherwise
                 mask = 1 - np.sign(np.linalg.norm(cp_n[indices_out], axis=-1))
-
+                if np.any(np.isnan(mask)): raise Exception('numerical error (nan) occured') # add 2022-12-11 for debugging
                 # the coefficient r in formula 7.15,
                 # r == 0 if no constrained plane are specified (mask == 1, cp_n == [0,0,0])
                 # and r != 0 if otherwise (mask == 0, cp_n != [0,0,0])
