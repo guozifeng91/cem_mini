@@ -580,9 +580,9 @@ def CEM(T, epsilon=1e-5, load_func=None, show_info=False):
         # next iteration
         itr+=1
         error=np.sum((p-p_prev)**2)
-        if iter > ITER_MAX:
+        if itr > ITER_MAX:
             raise Exception('CEM solver did not converge and reached iter max, potential numerical error?')
-            
+
         if show_info:
             if itr%10==1:
                 if itr==1:
