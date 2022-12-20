@@ -52,6 +52,7 @@ X: design information, which contains:
 '''
 
 import numpy as np
+ITER_MAX = 50
 
 def to_edge_indice(i,j,n):
     '''
@@ -579,7 +580,9 @@ def CEM(T, epsilon=1e-5, load_func=None, show_info=False):
         # next iteration
         itr+=1
         error=np.sum((p-p_prev)**2)
-
+        if iter > ITER_MAX:
+            raise Exception('CEM solver did not converge and reached iter max, potential numerical error?')
+            
         if show_info:
             if itr%10==1:
                 if itr==1:
