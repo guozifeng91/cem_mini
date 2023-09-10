@@ -3,6 +3,7 @@ the plotting module of cem_mini
 
 '''
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -19,16 +20,47 @@ red_color=(200/256,20/256,20/256)
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 
-class Arrow3D(FancyArrowPatch):
-    def __init__(self, xs, ys, zs, *args, **kwargs):
-        FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
-        self._verts3d = xs, ys, zs
+__matversion__ = matplotlib.__version__.split('.')
 
-    def draw(self, renderer):
-        xs3d, ys3d, zs3d = self._verts3d
-        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)#renderer.M)
-        self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
-        FancyArrowPatch.draw(self, renderer)
+if(int(__matversion__[0])>=3 and int(__matversion__[1]) <= 4):
+    # matplotlib <= 3.4
+    class Arrow3D(FancyArrowPatch):
+        def __init__(self, xs, ys, zs, *args, **kwargs):
+            FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
+            self._verts3d = xs, ys, zs
+
+        def draw(self, renderer):
+            xs3d, ys3d, zs3d = self._verts3d
+            xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)#renderer.M)
+            self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
+            FancyArrowPatch.draw(self, renderer)
+else:
+    # matplotlib >= 3.5
+    class Arrow3D(FancyArrowPatch):
+
+        def __init__(self, xs, ys, zs, *args, **kwargs):
+            super().__init__((0, 0), (0, 0), *args, **kwargs)
+            self._xyz = (xs[0], ys[0], zs[0])
+            self._dxdydz = (xs[1]-xs[0], ys[1]-ys[0], zs[1]-zs[0])
+
+        def draw(self, renderer):
+            x1, y1, z1 = self._xyz
+            dx, dy, dz = self._dxdydz
+            x2, y2, z2 = (x1 + dx, y1 + dy, z1 + dz)
+
+            xs, ys, zs = proj3d.proj_transform((x1, x2), (y1, y2), (z1, z2), self.axes.M)
+            self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+            super().draw(renderer)
+
+        def do_3d_projection(self, renderer=None):
+            x1, y1, z1 = self._xyz
+            dx, dy, dz = self._dxdydz
+            x2, y2, z2 = (x1 + dx, y1 + dy, z1 + dz)
+
+            xs, ys, zs = proj3d.proj_transform((x1, x2), (y1, y2), (z1, z2), self.axes.M)
+            self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+
+            return np.min(zs)
 
 def plot_cem_form(ax, coords, edges, forces, loads=None, view='2D-XY', load_len_scale=1, thickness_base=1, thickness_ratio=0.01, ignore_zeros=True, vrange=None):
     '''
